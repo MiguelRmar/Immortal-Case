@@ -6,17 +6,11 @@ import java.util.Random;
 public class Immortal extends Thread {
 
     private ImmortalUpdateReportCallback updateCallback=null;
-    
     private int health;
-    
     private int defaultDamageValue;
-
     private final List<Immortal> immortalsPopulation;
-
     private final String name;
-
     private final Random r = new Random(System.currentTimeMillis());
-
 
     public Immortal(String name, List<Immortal> immortalsPopulation, int health, int defaultDamageValue, ImmortalUpdateReportCallback ucb) {
         super(name);

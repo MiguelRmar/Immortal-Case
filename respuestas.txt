@@ -1,0 +1,2 @@
+1) El consumo se debe a que el consumidor esta tratando de consumir en todo momento lo que realiza el consumo de CPU, mientras que el productor unicamente produce cada segundo, se esta haciendo un consumo de CPU ineficiente ya que no cada vez que el consumidor intenta consumir algo encuentra que consumir
+

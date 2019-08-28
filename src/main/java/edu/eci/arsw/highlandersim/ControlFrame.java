@@ -20,7 +20,10 @@ import java.awt.event.ActionEvent;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
 import java.awt.Color;
-import javax.swing.JScrollBar;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 
 public class ControlFrame extends JFrame {
 
@@ -28,14 +31,14 @@ public class ControlFrame extends JFrame {
     private static final int DEFAULT_DAMAGE_VALUE = 10;
 
     private JPanel contentPane;
-
     private List<Immortal> immortals;
-
+    private static boolean pause = false;
+    private static boolean terminated = false;
     private JTextArea output;
-    private JLabel statisticsLabel;
-    private JScrollPane scrollPane;
     private JTextField numOfImmortals;
-
+    public static AtomicInteger counterPause=new AtomicInteger(0);;
+    public static Object lock =new Object();
+    public static ControlFrame frame=new ControlFrame();
     /**
      * Launch the application.
      */
@@ -43,7 +46,7 @@ public class ControlFrame extends JFrame {
         EventQueue.invokeLater(new Runnable() {
             public void run() {
                 try {
-                    ControlFrame frame = new ControlFrame();
+                    //ControlFrame frame = new ControlFrame();
                     frame.setVisible(true);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -62,44 +65,40 @@ public class ControlFrame extends JFrame {
         contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
         contentPane.setLayout(new BorderLayout(0, 0));
         setContentPane(contentPane);
-
+        //counter=new AtomicInteger(0);
         JToolBar toolBar = new JToolBar();
         contentPane.add(toolBar, BorderLayout.NORTH);
-
+        //lock=new Object();
         final JButton btnStart = new JButton("Start");
         btnStart.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-
                 immortals = setupInmortals();
-
                 if (immortals != null) {
                     for (Immortal im : immortals) {
                         im.start();
                     }
                 }
-
                 btnStart.setEnabled(false);
-
             }
         });
         toolBar.add(btnStart);
 
         JButton btnPauseAndCheck = new JButton("Pause and check");
-        btnPauseAndCheck.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-
-                /*
-				 * COMPLETAR
-                 */
-                int sum = 0;
-                for (Immortal im : immortals) {
-                    sum += im.getHealth();
+        btnPauseAndCheck.addActionListener((ActionEvent e) -> {
+            if (this.counterPause.get() != immortals.size()) {
+                synchronized (this) {
+                    try {
+                        setPause(true);
+                        this.wait();
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(ControlFrame.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    int sum = 0;
+                    for (Immortal im : immortals) {
+                        sum += im.getHealth();
+                    }
+                    output.setText(immortals.toString() + ".\nSum:" + sum);
                 }
-
-                statisticsLabel.setText("<html>"+immortals.toString()+"<br>Health sum:"+ sum);
-                
-                
-
             }
         });
         toolBar.add(btnPauseAndCheck);
@@ -108,51 +107,50 @@ public class ControlFrame extends JFrame {
 
         btnResume.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                /**
-                 * IMPLEMENTAR
-                 */
-
+                setPause(false);
+                synchronized(immortals){
+                    immortals.notifyAll();
+                }
             }
         });
 
         toolBar.add(btnResume);
-
+        
         JLabel lblNumOfImmortals = new JLabel("num. of immortals:");
         toolBar.add(lblNumOfImmortals);
 
         numOfImmortals = new JTextField();
-        numOfImmortals.setText("3");
+        numOfImmortals.setText("100");
         toolBar.add(numOfImmortals);
         numOfImmortals.setColumns(10);
-
+        
         JButton btnStop = new JButton("STOP");
         btnStop.setForeground(Color.RED);
         toolBar.add(btnStop);
-
-        scrollPane = new JScrollPane();
+        
+        btnStop.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                setTerminated(true);
+                JOptionPane.showMessageDialog(null, "Has finalizado el Juego. ");
+            }
+        });      
+       
+        JScrollPane scrollPane = new JScrollPane();
         contentPane.add(scrollPane, BorderLayout.CENTER);
 
         output = new JTextArea();
         output.setEditable(false);
         scrollPane.setViewportView(output);
-        
-        
-        statisticsLabel = new JLabel("Immortals total health:");
-        contentPane.add(statisticsLabel, BorderLayout.SOUTH);
 
     }
-
     public List<Immortal> setupInmortals() {
-
-        ImmortalUpdateReportCallback ucb=new TextAreaUpdateReportCallback(output,scrollPane);
-        
         try {
             int ni = Integer.parseInt(numOfImmortals.getText());
 
             List<Immortal> il = new LinkedList<Immortal>();
 
             for (int i = 0; i < ni; i++) {
-                Immortal i1 = new Immortal("im" + i, il, DEFAULT_IMMORTAL_HEALTH, DEFAULT_DAMAGE_VALUE,ucb);
+                Immortal i1 = new Immortal("im" + i, il, DEFAULT_IMMORTAL_HEALTH, DEFAULT_DAMAGE_VALUE);
                 il.add(i1);
             }
             return il;
@@ -162,32 +160,17 @@ public class ControlFrame extends JFrame {
         }
 
     }
-
-}
-
-class TextAreaUpdateReportCallback implements ImmortalUpdateReportCallback{
-
-    JTextArea ta;
-    JScrollPane jsp;
-
-    public TextAreaUpdateReportCallback(JTextArea ta,JScrollPane jsp) {
-        this.ta = ta;
-        this.jsp=jsp;
-    }       
     
-    @Override
-    public void processReport(String report) {
-        ta.append(report);
-
-        //move scrollbar to the bottom
-        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                JScrollBar bar = jsp.getVerticalScrollBar();
-                bar.setValue(bar.getMaximum());
-            }
-        }
-        );
-
+    private void setPause(boolean t) {
+        pause = t;
     }
-    
+    public static boolean getPause(){
+        return pause;
+    }
+    private void setTerminated(boolean t) {
+        terminated = t;
+    }
+    public static boolean getTerminated(){
+        return terminated;
+    }
 }
